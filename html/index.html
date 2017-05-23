@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"
+            integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+            crossorigin="anonymous"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
+            integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+            crossorigin="anonymous"></script>
+    <title>Plex Library Tool</title>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<style>
+body {
+    padding-top: 40px;
+}
+</style>
+<body>
+<div class="container">
+    <div id="thumb-container">
+        <div class="row">
+        </div>
+    </div>
+</div>
+</body>
+<script>
+
+var libraries, users;
+var modalstack = [];
+var libperms = {};
+var working_library = null;
+
+var load_data = function(callback) {
+    // Get the list of libraries from plex
+    $.ajax({
+        url: window.location.origin + '/get_shared_servers',
+        type: 'GET',
+        success: function(data) {
+            libraries = data;
+            load_user_data(callback);
+        }
+    });
+}
+
+var load_user_data = function(callback) {
+    // Get the list of users from plex
+    $.ajax({
+        url: window.location.origin + '/get_users',
+        type: 'GET',
+        success: function(data) {
+            users = data;
+            callback();
+        }
+    });
+}
+
+var get_thumbnail = function(label, lib_id) {
+    var thumb_col = $('<div>', {'class': 'col-sm-12 col-md-3'});
+    var thumb_wrapper = $('<div>', {'class': 'thumbnail lib_thumb', 'data-lib-id': lib_id});
+    var thumb_img = $('<img>', {'src': 'plex.png', 'alt': 'Plex Image'});
+    var thumb_caption = $('<div>', {'class': 'caption'});
+    var thumb_label = $('<h4>', {'text': label + ' (' + lib_id + ')'});
+    var thumb_desc = $('<p>', {'text': ''});
+    var thumb_btn_wrapper = $('<p>');
+    var thumb_button = $('<a>', {'class': 'btn btn-primary lib-btn', 'href': '#', 'role': 'button', 'text': 'Share Settings'});
+    var thumb = thumb_col.append(thumb_wrapper.append(thumb_img)
+                                                .append(thumb_caption.append(thumb_label)
+                                                                        .append(thumb_desc)
+                                                                        .append(thumb_btn_wrapper.append(thumb_button))));
+    return thumb;
+}
+
+var build_user_list = function(users, action) {
+    var list = $('<ul>', {'class': 'list-group perms-list-' + action});
+    if(action == 'add') {
+        action = 'add-user-btn';
+        text = 'Add';
+        color = 'success';
+    } else if(action == 'remove') {
+        action = 'remove-user-btn';
+        text = 'Remove';
+        color = 'danger';
+    }
+    for(u in users) {
+        user = users[u]
+        var item = $('<li>', {'class': 'list-group-item clearfix', 'data-user-id': user['id'], 'text': user['username'] + ' (' + user['email'] + ')' + ' (' + user['id'] + ')'});
+        var remove_btn = $('<span>').append($('<button>', {'type': 'button', 'class': 'btn btn-' + color + ' btn-sm pull-right ' + action, 'text': text}));
+        list.append(item.append(remove_btn));
+    }
+    return list;
+}
+
+var get_modal = function(library_id, label, shared_with, other_users) {
+    var wrapper = $('<div>', {'class': 'modal fade', 'tabindex': '-1', 'role': 'dialog', 'aria-labelledby': label, 'id': 'lib-modal-' + library_id});
+    var dialog = $('<div>', {'class': 'modal-dialog', 'role': 'document'});
+    var content = $('<div>', {'class': 'modal-content'});
+    var dismiss_btn = $('<button>', {'type': 'button', 'class': 'close', 'data-dismiss': 'modal', 'aria-label': 'Close'})
+                        .append($('<span>', {'aria-hidden': 'true', 'html': '&times;'}));
+    var header = $('<div>', {'class': 'modal-header'})
+                    .append(dismiss_btn)
+                    .append($('<h4>', {'class': 'modal-title', 'text': label}));
+    var body = $('<div>', {'class': 'modal-body'})
+                    .append($('<h4>', {'text': 'Shared with:'}))
+                    .append(shared_with)
+                    .append($('<hr>'))
+                    .append(other_users);
+    var footer = $('<div>', {'class': 'modal-footer'})
+                    .append($('<button>', {'class': 'btn btn-default', 'type': 'button', 'data-dismiss': 'modal', 'text': 'Close'}))
+                    .append($('<button>', {'class': 'btn btn-primary save-btn', 'type': 'button', 'text': 'Save changes', 'data-lib-id': library_id}));
+    var modal = wrapper.append(dialog.append(content.append(header)
+                                                    .append(body)
+                                                    .append(footer)));
+    modal.on('hidden.bs.modal', function() {
+        libperms = {};
+        $(this).remove();
+    });
+    modalstack.push(modal);
+    return modal;
+}
+
+var load_thumbs = function() {
+    for(l in libraries) {
+        lib = libraries[l];
+        thumbnail = get_thumbnail(lib['title'], l);
+        $('#thumb-container .row').append(thumbnail);
+    }
+    // build_modal();
+}
+
+var display_modal = function(id) {
+    lib_id = id;
+    lib = libraries[id];
+    shared_with = lib['users'].map(function(u) { return u.id; });
+    other_users = users.map(function(u) { return u.id; });
+    for(i in shared_with) {
+        index = other_users.indexOf(shared_with[i]);
+        if(index > -1) {
+            other_users.splice(index, 1);
+        }
+    }
+    not_shared_with_users = [];
+    for(u in users) {
+        id = users[u]['id'];
+        if(other_users.indexOf(id) > -1) {
+            not_shared_with_users.push(users[u]);
+        }
+    }
+    shared_with_html_list = build_user_list(lib['users'], 'remove');
+    other_users_html_list = build_user_list(not_shared_with_users, 'add')
+    modal = get_modal(lib_id, lib['title'], shared_with_html_list, other_users_html_list);
+    working_library = lib_id;
+    libperms['share'] = {};
+    libperms['unshare'] = {};
+    modal.modal();
+}
+
+$(document).on('click', '.remove-user-btn', function() {
+    $(this).text('Add')
+           .removeClass('btn-danger')
+           .addClass('btn-success')
+           .removeClass('remove-user-btn')
+           .addClass('add-user-btn');
+    item = $(this).parent().parent();
+    libperms.share[item.data('user-id')] = [];
+    $('.perms-list-add').prepend(item);
+});
+
+$(document).on('click', '.add-user-btn', function() {
+    $(this).text('Remove')
+           .removeClass('btn-success')
+           .addClass('btn-danger')
+           .removeClass('add-user-btn')
+           .addClass('remove-user-btn');
+    item = $(this).parent().parent();
+    libperms.share[item.data('user-id')] = [working_library];
+    $('.perms-list-remove').append(item);
+});
+
+$(document).on('click', '.save-btn', function() {
+    keys = Object.keys(libraries);
+    for(i in keys) {
+        id = parseInt(keys[i]);
+        if(id == parseInt(working_library)) {
+            continue;
+        } else {
+            user_ids = libraries[id]['users'].map(function(item) { return item['id']; });
+            share_keys = Object.keys(libperms.share);
+            for(i in share_keys) {
+                user_id = share_keys[i];
+                if(user_ids.indexOf(user_id) > -1) {
+                    libperms.share[user_id].push(id);
+                }
+            }
+        }
+    }
+    console.log('libperms share:');
+    console.log(libperms.share);
+    console.log(Object.keys(libperms.share));
+    share_keys = Object.keys(libperms.share);
+    for(i in share_keys) {
+        uid = share_keys[i];
+        console.log(uid);
+        if(libperms.share[uid].length < 1) {
+            delete libperms.share[uid];
+            libperms.unshare[uid] = [];
+        }
+    }
+    console.log(libperms.share);
+    save_perms_list();
+});
+
+var save_perms_list = function() {
+    $.ajax({
+        url: window.location.origin + '/save_shared_servers',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(libperms),
+        success: function() {
+            modalstack[0].modal('hide');
+            modalstack.splice(0, 1);
+            load_data(function(){});
+        }
+    })
+}
+
+$('#thumb-container').on('click', '.lib-btn', function() {
+    var libid = $(this).parent().parent().parent().data('lib-id');
+    display_modal(libid);
+});
+
+var init = function() {
+    load_data(function() {
+        load_thumbs();
+    });
+}
+
+$(function() {
+    init();
+});
+
+</script>
+</html>
