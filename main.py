@@ -22,7 +22,7 @@ shared_servers = None
 
 def get_libraries():
     global libraries
-    url = 'https://plex.tv/api/servers/%s' % plex_config['server_id']
+    url = appconfig.plex_libraries_url % plex_config['server_id']
     r = requests.get(url, headers=appconfig.plex_headers)
     xml = ET.fromstring(r.text)
     sections = [{'id': int(i.get('id')), 'title': i.get('title')} for i in xml.iter('Section')]

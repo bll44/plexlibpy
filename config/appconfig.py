@@ -20,4 +20,5 @@ plex_headers = {
 plex_server_id = None
 plex_shared_servers_url = 'https://plex.tv/api/servers/%s/shared_servers'
 plex_users_url = 'https://plex.tv/api/users'
+plex_libraries_url = 'https://plex.tv/api/servers/%s'
 # endregion
