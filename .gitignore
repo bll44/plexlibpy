@@ -103,3 +103,4 @@ ENV/
 # Project specific
 auth_config.py
 .idea/
+server_config

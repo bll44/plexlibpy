@@ -5,7 +5,6 @@ import uuid
 import logging
 import argparse
 import json
-from pprint import pprint
 import xml.etree.ElementTree as ET
 import cherrypy
 import share_unshare_libraries as plexlib
@@ -32,35 +31,47 @@ plex_token = None
 libraries = {}
 shared_servers = None
 
+
+def get_libraries():
+    global libraries
+    url = 'https://plex.tv/api/servers/%s' % _SERVER_ID
+    r = requests.get(url, headers=plex_headers)
+    xml = ET.fromstring(r.text)
+    sections = [i.get('id') for i in xml.iter('Section')]
+    libraries['sections'] = sections
+
 class PlexUtil(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def get_shared_servers(self):
         global libraries, shared_servers
-        url = 'https://plex.tv/api/servers/%s/shared_servers?X-Plex-Token=%s' % (_SERVER_ID, plex_token)
-        r = requests.get(url)
+        get_libraries()
+        url = 'https://plex.tv/api/servers/%s/shared_servers' % _SERVER_ID
+        r = requests.get(url, headers=plex_headers)
         xml = ET.fromstring(r.text)
-        shared_servers = xml.findall('SharedServer')
+        shared_servers = {int(s.get('userID')): [].append(int(i.get('id')) if bool(int(i.get('shared'))) else False) for i in s.iter('Section') for s in xml.iter('SharedServer')}
+        libraries['shared_servers'] = shared_servers
+        print(libraries['shared_servers'])
         # print(shared_servers)
-        sections = []
-        for section in shared_servers[0].findall('Section'):
-            sections.append((section.get('id'), section.get('title')))
-        for section in sections:
-            current_section_id = section[0]
-            shared_to = []
-            for user in shared_servers:
-                ss_sections = list(user.iter('Section'))
-                for s in ss_sections:
-                    if s.get('id') == current_section_id and int(s.get('shared')):
-                        shared_to.append({'id': user.get('userID'),
-                                          'username': user.get('username'),
-                                          'email': user.get('email')})
-            libraries[current_section_id] = {
-                'title': section[1],
-                'users': shared_to
-            }
-        return libraries
+        # sections = []
+        # for section in shared_servers[0].findall('Section'):
+        #     sections.append((section.get('id'), section.get('title')))
+        # for section in sections:
+        #     current_section_id = section[0]
+        #     shared_to = []
+        #     for user in shared_servers:
+        #         ss_sections = list(user.iter('Section'))
+        #         for s in ss_sections:
+        #             if s.get('id') == current_section_id and int(s.get('shared')):
+        #                 shared_to.append({'id': user.get('userID'),
+        #                                   'username': user.get('username'),
+        #                                   'email': user.get('email')})
+        #     libraries[current_section_id] = {
+        #         'title': section[1],
+        #         'users': shared_to
+        #     }
+        # return libraries
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
