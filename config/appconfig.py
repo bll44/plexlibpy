@@ -1,14 +1,11 @@
 import os
 import uuid
 import json
-import requests
-import xml.etree.ElementTree as ET
 
 # region Logging configuration
 appname = 'plexlibpy'
 log_dir = os.path.abspath(os.path.join(__file__, '..', '..', 'logs'))
 # endregion
-
 
 # region Plex configuration
 plex_tv_url = 'https://plex.tv'
@@ -20,9 +17,7 @@ plex_headers = {
     'X-Plex-Version': '1.0',
     'X-Plex-Client-Identifier': str(uuid.uuid4())
 }
+plex_server_id = None
+plex_shared_servers_url = 'https://plex.tv/api/servers/%s/shared_servers'
+plex_users_url = 'https://plex.tv/api/users'
 # endregion
-
-def load_plex_config():
-    with open(plex_config_file, 'r') as f:
-        config = json.loads(f.read())
-    return config

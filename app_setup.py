@@ -4,9 +4,10 @@ import base64
 from config import appconfig
 import requests
 import xml.etree.ElementTree as ET
-from helpers import plex_auth
+from helpers import plex
 from helpers.utils import logger
 import time
+import sys
 
 _args = None
 _logger = logger.configure_logging(__name__, level='INFO')
@@ -49,13 +50,15 @@ def run_setup(args):
 
     try:
         _logger.info('Authenticating to Plex...')
-        plex_auth.authenticate()
+        plex.authenticate()
         _logger.info('Successfully authenticated to Plex')
     except Exception as e:
-        _logger.info('Authentication failed.')
+        _logger.error('Authentication failed.')
         _logger.exception(e)
+        sys.exit(1)
 
     plex_info['server_id'] = get_server_id(plex_info['server_name'])
+    appconfig.plex_server_id = plex_info['server_id']
     _logger.info('Server info:')
     _logger.info('%s:%s' % (plex_info['server_name'], plex_info['server_id']))
     with open(appconfig.plex_config_file, 'w') as f:

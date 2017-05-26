@@ -9,14 +9,12 @@ from helpers.utils import logger
 import app_setup
 from config import appconfig
 import sys
-from helpers import plex_auth
+from helpers import plex
 
 
 _logger = logger.configure_logging(__name__, level='INFO')
 _args = None
-
-_SERVER_ID = '383f29cc48658882f79edd40d27a654f8ffb5100'
-plex_token = None
+plex_config = None
 
 libraries = {}
 shared_servers = None
@@ -24,10 +22,10 @@ shared_servers = None
 
 def get_libraries():
     global libraries
-    url = 'https://plex.tv/api/servers/%s' % _SERVER_ID
+    url = 'https://plex.tv/api/servers/%s' % plex_config['server_id']
     r = requests.get(url, headers=appconfig.plex_headers)
     xml = ET.fromstring(r.text)
-    sections = [i.get('id') for i in xml.iter('Section')]
+    sections = [{'id': int(i.get('id')), 'title': i.get('title')} for i in xml.iter('Section')]
     libraries['sections'] = sections
 
 class PlexUtil(object):
@@ -37,43 +35,32 @@ class PlexUtil(object):
     def get_shared_servers(self):
         global libraries, shared_servers
         get_libraries()
-        url = 'https://plex.tv/api/servers/%s/shared_servers' % _SERVER_ID
-        r = requests.get(url, headers=plex_headers)
+        url = appconfig.plex_shared_servers_url % plex_config['server_id']
+        r = requests.get(url, headers=appconfig.plex_headers)
         xml = ET.fromstring(r.text)
-        shared_servers = {int(s.get('userID')): [].append(int(i.get('id')) if bool(int(i.get('shared'))) else False) for i in s.iter('Section') for s in xml.iter('SharedServer')}
+        shared_servers = []
+        for ss in xml.iter('SharedServer'):
+            user = {}
+            library_sections = []
+            for s in ss.iter('Section'):
+                if bool(int(s.get('shared'))):
+                    library_sections.append(int(s.get('id')))
+            user[int(ss.get('userID'))] = library_sections
+            shared_servers.append(user)
         libraries['shared_servers'] = shared_servers
-        print(libraries['shared_servers'])
-        # print(shared_servers)
-        # sections = []
-        # for section in shared_servers[0].findall('Section'):
-        #     sections.append((section.get('id'), section.get('title')))
-        # for section in sections:
-        #     current_section_id = section[0]
-        #     shared_to = []
-        #     for user in shared_servers:
-        #         ss_sections = list(user.iter('Section'))
-        #         for s in ss_sections:
-        #             if s.get('id') == current_section_id and int(s.get('shared')):
-        #                 shared_to.append({'id': user.get('userID'),
-        #                                   'username': user.get('username'),
-        #                                   'email': user.get('email')})
-        #     libraries[current_section_id] = {
-        #         'title': section[1],
-        #         'users': shared_to
-        #     }
-        # return libraries
+        return libraries
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def get_users(self):
-        url = 'https://plex.tv/api/users?X-Plex-Token=%s' % plex_token
-        r = requests.get(url)
+        url = appconfig.plex_users_url
+        r = requests.get(url, headers=appconfig.plex_headers)
         xml = ET.fromstring(r.text)
         xml_users = xml.findall('User')
         users = []
         for u in xml_users:
             user = {
-                'id': u.get('id'),
+                'id': int(u.get('id')),
                 'username': u.get('username'),
                 'title': u.get('title'),
                 'email': u.get('email'),
@@ -89,19 +76,25 @@ class PlexUtil(object):
         data = cherrypy.request.json
         print(data)
         if bool(data['share']) and bool(data['unshare']):
-            plexlib.share(data['share'], _SERVER_ID, plex_token)
-            plexlib.unshare(data['unshare'], _SERVER_ID, plex_token)
+            plexlib.share(data['share'], appconfig.plex_server_id, appconfig.plex_token)
+            plexlib.unshare(data['unshare'], appconfig.plex_server_id, appconfig.plex_token)
         elif bool(data['share']):
-            plexlib.share(data['share'], _SERVER_ID, plex_token)
+            plexlib.share(data['share'], appconfig.plex_server_id, appconfig.plex_token)
         elif bool(data['unshare']):
-            plexlib.unshare(data['unshare'], _SERVER_ID, plex_token)
+            plexlib.unshare(data['unshare'], appconfig.plex_server_id, appconfig.plex_token)
         else:
             pass
 
 def plex_util():
+    global plex_config
     # Authenticate to plex
-    plex_auth.authenticate()
-    sys.exit(0)
+    try:
+        plex.authenticate()
+    except Exception as e:
+        sys.exit(1)
+
+    plex_config = plex.load_plex_config()
+
     cherrypy.config.update({'server.socket_host': '0.0.0.0'})
     cherrypy.quickstart(PlexUtil(), '/', {
         '/': {
@@ -119,6 +112,8 @@ def main():
     parser.add_argument('--setup', action='store_true', dest='setup',
                         help='Run the initial setup for the application '
                              '(required before first use)')
+    parser.add_argument('--test', action='store_true', dest='test',
+                        help='Enable test mode')
     _args = parser.parse_args()
 
     if _args.v:
