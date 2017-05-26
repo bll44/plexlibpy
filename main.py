@@ -1,31 +1,21 @@
 import os
 import requests
-import auth_config as auth
-import uuid
 import logging
 import argparse
-import json
 import xml.etree.ElementTree as ET
 import cherrypy
 import share_unshare_libraries as plexlib
+from helpers.utils import logger
+import app_setup
+from config import appconfig
+import sys
+from helpers import plex_auth
 
 
-_logger = logging.getLogger(__name__)
-ch = logging.StreamHandler()
-ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s> %(message)s'))
-_logger.setLevel(logging.INFO)
-_logger.addHandler(ch)
-
+_logger = logger.configure_logging(__name__, level='INFO')
 _args = None
 
-plex_headers = {
-    'X-Plex-Product': 'Plex Library Util',
-    'X-Plex-Version': '1.0',
-    'X-Plex-Client-Identifier': str(uuid.uuid4())
-}
-
 _SERVER_ID = '383f29cc48658882f79edd40d27a654f8ffb5100'
-auth_url = 'https://plex.tv/users/sign_in.json'
 plex_token = None
 
 libraries = {}
@@ -35,7 +25,7 @@ shared_servers = None
 def get_libraries():
     global libraries
     url = 'https://plex.tv/api/servers/%s' % _SERVER_ID
-    r = requests.get(url, headers=plex_headers)
+    r = requests.get(url, headers=appconfig.plex_headers)
     xml = ET.fromstring(r.text)
     sections = [i.get('id') for i in xml.iter('Section')]
     libraries['sections'] = sections
@@ -109,8 +99,9 @@ class PlexUtil(object):
             pass
 
 def plex_util():
-    _plex_auth()
-
+    # Authenticate to plex
+    plex_auth.authenticate()
+    sys.exit(0)
     cherrypy.config.update({'server.socket_host': '0.0.0.0'})
     cherrypy.quickstart(PlexUtil(), '/', {
         '/': {
@@ -121,33 +112,22 @@ def plex_util():
         }
     })
 
-def _plex_auth():
-    global plex_token
-    auth_data = {
-        'user[login]': auth.plex_user,
-        'user[password]': auth.plex_passwd
-
-    }
-    r = requests.post(auth_url,
-                      headers=plex_headers,
-                      data=auth_data)
-    data = r.json()
-    _logger.debug(data)
-    plex_auth_token = data['user']['authToken']
-    _logger.info('Plex token: %s' % plex_auth_token)
-    plex_token = plex_auth_token
-    plex_headers['X-Plex-Token'] = plex_token
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Turn on verbose logging', dest='v')
+    parser.add_argument('--setup', action='store_true', dest='setup',
+                        help='Run the initial setup for the application '
+                             '(required before first use)')
     _args = parser.parse_args()
 
     if _args.v:
         _logger.setLevel(logging.DEBUG)
 
-    plex_util()
+    if _args.setup:
+        app_setup.run_setup(_args)
+    else:
+        plex_util()
 
 
 if __name__ == '__main__':

@@ -6,16 +6,12 @@
 
 import uuid
 import requests
-import logging
 import sys
 from xml.dom import minidom
-from main import plex_headers
+from config.appconfig import plex_headers
+from helpers.utils import logger
 
-_logger = logging.getLogger(__name__)
-ch = logging.StreamHandler()
-ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s> %(message)s'))
-_logger.setLevel(logging.DEBUG)
-_logger.addHandler(ch)
+_logger = logger.configure_logging(__name__, level='INFO')
 
 ## EDIT THESE SETTINGS ###
 
