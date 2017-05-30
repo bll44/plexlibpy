@@ -224,7 +224,7 @@ var build_user_list = function(users, action) {
     for(u in users) {
         user = users[u]
         ui_list.push(user);
-        var item = $('<li>', {'class': 'list-group-item clearfix', 'data-user-id': user.id, 'text': user.username + ' (' + user.email + ')' + ' (' + user.id + ')'});
+        var item = $('<li>', {'class': 'list-group-item clearfix', 'data-user-id': user.id, 'text': user.username + ' (' + user.email + ')'});
         var remove_btn = $('<span>').append($('<button>', {'type': 'button', 'class': 'btn btn-' + color + ' btn-sm pull-right ' + action, 'text': text}));
         list.append(item.append(remove_btn));
     }

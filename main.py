@@ -1,15 +1,14 @@
 import os
+import sys
 import requests
 import logging
 import argparse
 import xml.etree.ElementTree as ET
 import cherrypy
 import plex_api
-# import share_unshare_libraries as plexlib
 from helpers.utils import logger
 import app_setup
 from config import appconfig
-import sys
 from helpers import plex
 
 
