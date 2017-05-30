@@ -4,7 +4,8 @@ import logging
 import argparse
 import xml.etree.ElementTree as ET
 import cherrypy
-import share_unshare_libraries as plexlib
+import plex_api
+# import share_unshare_libraries as plexlib
 from helpers.utils import logger
 import app_setup
 from config import appconfig
@@ -74,16 +75,17 @@ class PlexUtil(object):
     @cherrypy.tools.json_out()
     def save_shared_servers(self):
         data = cherrypy.request.json
-        print(data)
-        if bool(data['share']) and bool(data['unshare']):
-            plexlib.share(data['share'], appconfig.plex_server_id, appconfig.plex_token)
-            plexlib.unshare(data['unshare'], appconfig.plex_server_id, appconfig.plex_token)
-        elif bool(data['share']):
-            plexlib.share(data['share'], appconfig.plex_server_id, appconfig.plex_token)
-        elif bool(data['unshare']):
-            plexlib.unshare(data['unshare'], appconfig.plex_server_id, appconfig.plex_token)
-        else:
-            pass
+        shared = {}
+        unshared = {}
+        for i in data:
+            if len(i['libs'][0]['sections']) > 0:
+                shared[int(i['id'])] = i['libs'][0]['sections']
+            else:
+                unshared[int(i['id'])] = i['libs'][0]['sections']
+        if len(shared) > 0:
+            plex_api.share(shared)
+        if len(unshared) > 0:
+            plex_api.unshare(unshared)
 
 def plex_util():
     global plex_config
@@ -94,6 +96,7 @@ def plex_util():
         sys.exit(1)
 
     plex_config = plex.load_plex_config()
+    appconfig.plex_server_id = plex_config['server_id']
 
     cherrypy.config.update({'server.socket_host': '0.0.0.0'})
     cherrypy.quickstart(PlexUtil(), '/', {
