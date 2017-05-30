@@ -191,7 +191,7 @@ var get_thumbnail = function(label, lib_id) {
     var thumb_wrapper = $('<div>', {'class': 'thumbnail lib_thumb', 'data-lib-id': lib_id});
     var thumb_img = $('<img>', {'src': 'plex.png', 'alt': 'Plex Image'});
     var thumb_caption = $('<div>', {'class': 'caption'});
-    var thumb_label = $('<h4>', {'text': label + ' (' + lib_id + ')'});
+    var thumb_label = $('<h4>', {'text': label});
     var thumb_desc = $('<p>', {'text': ''});
     var thumb_btn_wrapper = $('<p>');
     var thumb_button = $('<a>', {'class': 'btn btn-primary lib-btn', 'href': '#', 'role': 'button', 'text': 'Share Settings'});
@@ -224,7 +224,7 @@ var build_user_list = function(users, action) {
     for(u in users) {
         user = users[u]
         ui_list.push(user);
-        var item = $('<li>', {'class': 'list-group-item clearfix', 'data-user-id': user.id, 'text': user.username + ' (' + user.email + ')'});
+        var item = $('<li>', {'class': 'list-group-item clearfix', 'data-user-id': user.id, 'html': '<strong>'+user.username+'</strong>' + ' <small>('+ user.email+')</small>'});
         var remove_btn = $('<span>').append($('<button>', {'type': 'button', 'class': 'btn btn-' + color + ' btn-sm pull-right ' + action, 'text': text}));
         list.append(item.append(remove_btn));
     }
