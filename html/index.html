@@ -28,10 +28,113 @@ body {
 </body>
 <script>
 
-var libraries, users;
+var libraries, users, shared_servers;
 var modalstack = [];
 var libperms = {};
 var working_library = null;
+var modified_users = [];
+var ui_list = [];
+
+var lookup_user = function(user_id) {
+    for(i in users) {
+        user = users[i];
+        if(user.id == parseInt(user_id)) {
+            return user;
+        }
+    }
+}
+
+var lookup_library = function(lib_id) {
+    for(i in libraries) {
+        item = libraries[i];
+        if(item.id == parseInt(lib_id)) {
+            return item;
+        }
+    }
+}
+
+var get_user_libraries = function(user) {
+    var user_libs = [];
+    for(i in shared_servers) {
+        lib = shared_servers[i];
+        if(lib.user_id == user.id) user_libs.push(lib);
+    }
+    return user_libs;
+}
+
+var get_shared_users = function(lib) {
+    var shared_users = [];
+    for(i in shared_servers) {
+        ss = shared_servers[i];
+        if(ss.sections.indexOf(lib.id) > -1) {
+            user = lookup_user(ss.user_id);
+            shared_users.push(user)
+        }
+    }
+    return shared_users;
+}
+
+var get_unshared_users = function(lib) {
+    var unshared_users = [];
+    for(i in shared_servers) {
+        ss = shared_servers[i];
+        if(ss.sections.indexOf(lib.id) == -1) {
+            user = lookup_user(ss.user_id);
+            unshared_users.push(user);
+        }
+    }
+    return unshared_users;
+}
+
+var get_ui_user = function(id) {
+    var idx;
+    for(var i in ui_list) {
+        if(ui_list[i].id == id) {
+            idx = i;
+        }
+    }
+    return idx;
+}
+
+class User {
+
+    constructor(user) {
+        this.id = user.id;
+        this.email = user.email;
+        this.username = user.username;
+        this.thumb = user.thumb;
+        this.title = user.title;
+        this.libs = this.libraries();
+    }
+
+    libraries() {
+        return get_user_libraries(this);
+    }
+
+    removeLibrary(id) {
+        var index = this.libs[0].sections.indexOf(id);
+        this.libs[0].sections.splice(index, 1);
+    }
+
+    addLibrary(id) {
+        this.libs[0].sections.push(id);
+    }
+}
+
+class Library {
+    constructor(lib) {
+        this.id = lib.id;
+        this.title = lib.title;
+    }
+
+    users() {
+        return get_shared_users(this);
+    }
+
+    unshared_users() {
+        return get_unshared_users(this);
+    }
+}
 
 var load_data = function(callback) {
     // Get the list of libraries from plex
@@ -39,7 +142,10 @@ var load_data = function(callback) {
         url: window.location.origin + '/get_shared_servers',
         type: 'GET',
         success: function(data) {
-            libraries = data;
+            shared_servers = data.shared_servers;
+            libraries = data.sections.map(function(item) {
+                return new Library(item);
+            });
             load_user_data(callback);
         }
     });
@@ -51,7 +157,9 @@ var load_user_data = function(callback) {
         url: window.location.origin + '/get_users',
         type: 'GET',
         success: function(data) {
-            users = data;
+            users = data.map(function(item) {
+                return new User(item);
+            });
             callback();
         }
     });
@@ -73,60 +181,12 @@ var get_thumbnail = function(label, lib_id) {
     return thumb;
 }
 
-var lookup_user = function(user_id) {
-    for(i in users) {
-        user = users[i];
-        if(user['id'] == parseInt(user_id)) {
-            return user;
-        }
+var load_thumbs = function() {
+    for(i in libraries) {
+        lib = libraries[i];
+        thumbnail = get_thumbnail(lib.title, lib.id);
+        $('#thumb-container .row').append(thumbnail);
     }
-}
-
-var get_library = function(lib_id) {
-    for(i in libraries['sections']) {
-        lib = libraries['sections'][i];
-        if(parseInt(lib['id']) == parseInt(lib_id)) {
-            return lib;
-        }
-    }
-}
-
-var get_user_libraries = function(user) {
-    uid = user['id'];
-    libs = libraries['shared_servers'];
-    for(l in libs) {
-        libkey = Object.keys(libs[l])[0];
-        if(parseInt(libkey) == parseInt(uid)) {
-            return libs[l][libkey];
-        }
-    }
-}
-
-var user_has_library = function(user, lib) {
-    lib_id = lib['id'];
-    user_id = user['id'];
-    user_libs = get_user_libraries(lookup_user(user_id));
-    console.log('lib id: ', lib_id);
-    console.log(user_libs);
-    console.log(user_libs.indexOf(lib_id));
-    if(users_libs.indexOf(lib_id) > -1) {
-        console.log('true');
-        return true;
-    } else {
-        console.log('false');
-        return false;
-    }
-}
-
-var get_library_users = function(lib) {
-    lib_id = lib['id'];
-    libs = libraries['shared_servers'];
-    lib_users = [];
-    for(l in libs) {
-        user_id = Object.keys(libs[l])[0]
-        if(user_has_library(lookup_user(user_id), lib)) lib_users.push(user_id);
-    }
-    return lib_users;
 }
 
 var build_user_list = function(users, action) {
@@ -142,7 +202,8 @@ var build_user_list = function(users, action) {
     }
     for(u in users) {
         user = users[u]
-        var item = $('<li>', {'class': 'list-group-item clearfix', 'data-user-id': user['id'], 'text': user['username'] + ' (' + user['email'] + ')' + ' (' + user['id'] + ')'});
+        ui_list.push(user);
+        var item = $('<li>', {'class': 'list-group-item clearfix', 'data-user-id': user.id, 'text': user.username + ' (' + user.email + ')' + ' (' + user.id + ')'});
         var remove_btn = $('<span>').append($('<button>', {'type': 'button', 'class': 'btn btn-' + color + ' btn-sm pull-right ' + action, 'text': text}));
         list.append(item.append(remove_btn));
     }
@@ -150,7 +211,7 @@ var build_user_list = function(users, action) {
 }
 
 var get_modal = function(library_id, label) {
-    var wrapper = $('<div>', {'class': 'modal fade', 'tabindex': '-1', 'role': 'dialog', 'aria-labelledby': label, 'id': 'lib-modal-' + library_id});
+    var wrapper = $('<div>', {'class': 'modal fade', 'tabindex': '-1', 'role': 'dialog', 'aria-labelledby': label, 'id': 'lib-modal-' + library_id, 'data-lib-id': library_id});
     var dialog = $('<div>', {'class': 'modal-dialog', 'role': 'document'});
     var content = $('<div>', {'class': 'modal-content'});
     var dismiss_btn = $('<button>', {'type': 'button', 'class': 'close', 'data-dismiss': 'modal', 'aria-label': 'Close'})
@@ -163,13 +224,13 @@ var get_modal = function(library_id, label) {
     //                 .append(shared_with)
     //                 .append($('<hr>'))
     //                 .append(other_users);
-    var body = $('<div>', {'class': 'modal-body', 'text': 'TEST MODAL'});
+    var body = $('<div>', {'class': 'modal-body'});
     var footer = $('<div>', {'class': 'modal-footer'})
                     .append($('<button>', {'class': 'btn btn-default', 'type': 'button', 'data-dismiss': 'modal', 'text': 'Close'}))
                     .append($('<button>', {'class': 'btn btn-primary save-btn', 'type': 'button', 'text': 'Save changes', 'data-lib-id': library_id}));
     var element = wrapper.append(dialog.append(content.append(header)
-                                                    .append(body)
-                                                    .append(footer)));
+                                                      .append(body)
+                                                      .append(footer)));
     var modal = {};
     modal['element'] = element;
     modal['setContent'] = function(element) {
@@ -183,44 +244,17 @@ var get_modal = function(library_id, label) {
     return modal;
 }
 
-var load_thumbs = function() {
-    for(l in libraries['sections']) {
-        lib = libraries['sections'][l];
-        thumbnail = get_thumbnail(lib['title'], lib['id']);
-        $('#thumb-container .row').append(thumbnail);
-    }
-    // build_modal();
-}
-
 var display_modal = function(id) {
-    // lib_id = id;
-    // shared_with = lib['users'].map(function(u) { return u.id; });
-    // other_users = users.map(function(u) { return u.id; });
-    // for(i in shared_with) {
-    //     index = other_users.indexOf(shared_with[i]);
-    //     if(index > -1) {
-    //         other_users.splice(index, 1);
-    //     }
-    // }
-    // not_shared_with_users = [];
-    // for(u in users) {
-    //     id = users[u]['id'];
-    //     if(other_users.indexOf(id) > -1) {
-    //         not_shared_with_users.push(users[u]);
-    //     }
-    // }
-    // shared_with_html_list = build_user_list(lib['users'], 'remove');
-    // other_users_html_list = build_user_list(not_shared_with_users, 'add')
-    // modal = get_modal(lib_id, lib['title'], shared_with_html_list, other_users_html_list);
-    // working_library = lib_id;
-    // libperms['share'] = {};
-    // libperms['unshare'] = {};
-    lib = get_library(id);
-    modal = get_modal(lib['id'], lib['title']);
-    // shared_with_html_list = build_user_list(get_library_users(lib['id']), 'remove');
-    // unshared_with_html_list = build_user
-    shared_with = get_library_users(lib);
-    // modal.display();
+    ui_list = [];
+    lib = lookup_library(id);
+    modal = get_modal(lib.id, lib.title);
+    shared_with_html_list = build_user_list(lib.users(), 'remove');
+    unshared_with_html_list = build_user_list(lib.unshared_users(), 'add');
+    content = $('<div>').append(shared_with_html_list)
+                        .append($('<hr>'))
+                        .append(unshared_with_html_list);
+    modal.setContent(content)
+    modal.display();
 }
 
 $(document).on('click', '.remove-user-btn', function() {
@@ -230,7 +264,9 @@ $(document).on('click', '.remove-user-btn', function() {
            .removeClass('remove-user-btn')
            .addClass('add-user-btn');
     item = $(this).parent().parent();
-    libperms.share[item.data('user-id')] = [];
+    lib_id = $(this).closest('.modal').data('lib-id');
+    var i = get_ui_user(item.data('user-id'));
+    ui_list[i].removeLibrary(lib_id);
     $('.perms-list-add').prepend(item);
 });
 
@@ -241,7 +277,9 @@ $(document).on('click', '.add-user-btn', function() {
            .removeClass('add-user-btn')
            .addClass('remove-user-btn');
     item = $(this).parent().parent();
-    libperms.share[item.data('user-id')] = [working_library];
+    lib_id = $(this).closest('.modal').data('lib-id');
+    var i = get_ui_user(item.data('user-id'));
+    ui_list[i].addLibrary(lib_id);
     $('.perms-list-remove').append(item);
 });
 

@@ -40,12 +40,12 @@ class PlexUtil(object):
         xml = ET.fromstring(r.text)
         shared_servers = []
         for ss in xml.iter('SharedServer'):
-            user = {}
             library_sections = []
             for s in ss.iter('Section'):
                 if bool(int(s.get('shared'))):
                     library_sections.append(int(s.get('id')))
-            user[int(ss.get('userID'))] = library_sections
+            user = {'user_id': int(ss.get('userID')),
+                    'sections': library_sections}
             shared_servers.append(user)
         libraries['shared_servers'] = shared_servers
         return libraries
