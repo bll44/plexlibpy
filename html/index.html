@@ -28,10 +28,130 @@ body {
 </body>
 <script>
 
-var libraries, users;
+var libraries, users, shared_servers;
 var modalstack = [];
-var libperms = {};
 var working_library = null;
+var ui_list = [];
+
+var lookup_user = function(user_id) {
+    for(i in users) {
+        user = users[i];
+        if(user.id == parseInt(user_id)) {
+            return user;
+        }
+    }
+}
+
+var lookup_library = function(lib_id) {
+    for(i in libraries) {
+        item = libraries[i];
+        if(item.id == parseInt(lib_id)) {
+            return item;
+        }
+    }
+}
+
+var get_user_libraries = function(user) {
+    var user_libs = [];
+    for(i in shared_servers) {
+        lib = shared_servers[i];
+        if(lib.user_id == user.id) user_libs.push(lib);
+    }
+    return user_libs;
+}
+
+var get_shared_users = function(lib) {
+    var shared_users = [];
+    for(i in shared_servers) {
+        ss = shared_servers[i];
+        if(ss.sections.indexOf(lib.id) > -1) {
+            user = lookup_user(ss.user_id);
+            shared_users.push(user)
+        }
+    }
+    return shared_users;
+}
+
+var get_unshared_users = function(lib) {
+    var unshared_users = [];
+    for(var i in shared_servers) {
+        ss = shared_servers[i];
+        if(ss.sections.indexOf(lib.id) == -1) {
+            user = lookup_user(ss.user_id);
+            unshared_users.push(user);
+        }
+    }
+    if((unshared_users.length + lib.users().length) < users.length) {
+        shared = lib.users().map(function(item) { return item.id; });
+        unshared = unshared_users.map(function(item) { return item.id; });
+        all = users.map(function(item) { return item.id; });
+        for(var i in users) {
+            if(shared.indexOf(users[i].id) == -1 && unshared.indexOf(users[i].id) == -1) {
+                unshared_users.push(users[i]);
+            }
+        }
+    }
+    return unshared_users;
+}
+
+var get_ui_user = function(id) {
+    var idx;
+    for(var i in ui_list) {
+        if(ui_list[i].id == id) {
+            idx = i;
+        }
+    }
+    return idx;
+}
+
+class User {
+
+    constructor(user) {
+        this.id = user.id;
+        this.email = user.email;
+        this.username = user.username;
+        this.thumb = user.thumb;
+        this.title = user.title;
+        this.libs = this.libraries();
+        this.modified = false;
+    }
+
+    libraries() {
+        return get_user_libraries(this);
+    }
+
+    removeLibrary(id) {
+        var index = this.libs[0].sections.indexOf(id);
+        this.libs[0].sections.splice(index, 1);
+        this.modified = true;
+    }
+
+    addLibrary(id) {
+        if(this.libs.length > 0) {
+            this.libs[0].sections.push(id);
+        } else {
+            this.libs.push({
+                'sections': [id]
+            });
+        }
+        this.modified = true;
+    }
+}
+
+class Library {
+    constructor(lib) {
+        this.id = lib.id;
+        this.title = lib.title;
+    }
+
+    users() {
+        return get_shared_users(this);
+    }
+
+    unshared_users() {
+        return get_unshared_users(this);
+    }
+}
 
 var load_data = function(callback) {
     // Get the list of libraries from plex
@@ -39,7 +159,12 @@ var load_data = function(callback) {
         url: window.location.origin + '/get_shared_servers',
         type: 'GET',
         success: function(data) {
-            libraries = data;
+            shared_servers = data.shared_servers;
+            libraries = [];
+            libraries = data.sections.map(function(item) {
+                return new Library(item);
+            });
+            console.log('done loading libraries.');
             load_user_data(callback);
         }
     });
@@ -51,7 +176,11 @@ var load_user_data = function(callback) {
         url: window.location.origin + '/get_users',
         type: 'GET',
         success: function(data) {
-            users = data;
+            users = [];
+            users = data.map(function(item) {
+                return new User(item);
+            });
+            console.log('done loading user data.');
             callback();
         }
     });
@@ -62,7 +191,7 @@ var get_thumbnail = function(label, lib_id) {
     var thumb_wrapper = $('<div>', {'class': 'thumbnail lib_thumb', 'data-lib-id': lib_id});
     var thumb_img = $('<img>', {'src': 'plex.png', 'alt': 'Plex Image'});
     var thumb_caption = $('<div>', {'class': 'caption'});
-    var thumb_label = $('<h4>', {'text': label + ' (' + lib_id + ')'});
+    var thumb_label = $('<h4>', {'text': label});
     var thumb_desc = $('<p>', {'text': ''});
     var thumb_btn_wrapper = $('<p>');
     var thumb_button = $('<a>', {'class': 'btn btn-primary lib-btn', 'href': '#', 'role': 'button', 'text': 'Share Settings'});
@@ -71,6 +200,14 @@ var get_thumbnail = function(label, lib_id) {
                                                                         .append(thumb_desc)
                                                                         .append(thumb_btn_wrapper.append(thumb_button))));
     return thumb;
+}
+
+var load_thumbs = function() {
+    for(i in libraries) {
+        lib = libraries[i];
+        thumbnail = get_thumbnail(lib.title, lib.id);
+        $('#thumb-container .row').append(thumbnail);
+    }
 }
 
 var build_user_list = function(users, action) {
@@ -86,15 +223,16 @@ var build_user_list = function(users, action) {
     }
     for(u in users) {
         user = users[u]
-        var item = $('<li>', {'class': 'list-group-item clearfix', 'data-user-id': user['id'], 'text': user['username'] + ' (' + user['email'] + ')' + ' (' + user['id'] + ')'});
+        ui_list.push(user);
+        var item = $('<li>', {'class': 'list-group-item clearfix', 'data-user-id': user.id, 'html': '<strong>'+user.username+'</strong>' + ' <small>('+ user.email+')</small>'});
         var remove_btn = $('<span>').append($('<button>', {'type': 'button', 'class': 'btn btn-' + color + ' btn-sm pull-right ' + action, 'text': text}));
         list.append(item.append(remove_btn));
     }
     return list;
 }
 
-var get_modal = function(library_id, label, shared_with, other_users) {
-    var wrapper = $('<div>', {'class': 'modal fade', 'tabindex': '-1', 'role': 'dialog', 'aria-labelledby': label, 'id': 'lib-modal-' + library_id});
+var get_modal = function(library_id, label) {
+    var wrapper = $('<div>', {'class': 'modal fade', 'tabindex': '-1', 'role': 'dialog', 'aria-labelledby': label, 'id': 'lib-modal-' + library_id, 'data-lib-id': library_id});
     var dialog = $('<div>', {'class': 'modal-dialog', 'role': 'document'});
     var content = $('<div>', {'class': 'modal-content'});
     var dismiss_btn = $('<button>', {'type': 'button', 'class': 'close', 'data-dismiss': 'modal', 'aria-label': 'Close'})
@@ -102,59 +240,42 @@ var get_modal = function(library_id, label, shared_with, other_users) {
     var header = $('<div>', {'class': 'modal-header'})
                     .append(dismiss_btn)
                     .append($('<h4>', {'class': 'modal-title', 'text': label}));
-    var body = $('<div>', {'class': 'modal-body'})
-                    .append($('<h4>', {'text': 'Shared with:'}))
-                    .append(shared_with)
-                    .append($('<hr>'))
-                    .append(other_users);
+    var body = $('<div>', {'class': 'modal-body'});
     var footer = $('<div>', {'class': 'modal-footer'})
                     .append($('<button>', {'class': 'btn btn-default', 'type': 'button', 'data-dismiss': 'modal', 'text': 'Close'}))
                     .append($('<button>', {'class': 'btn btn-primary save-btn', 'type': 'button', 'text': 'Save changes', 'data-lib-id': library_id}));
-    var modal = wrapper.append(dialog.append(content.append(header)
-                                                    .append(body)
-                                                    .append(footer)));
-    modal.on('hidden.bs.modal', function() {
-        libperms = {};
-        $(this).remove();
-    });
-    modalstack.push(modal);
-    return modal;
-}
-
-var load_thumbs = function() {
-    for(l in libraries) {
-        lib = libraries[l];
-        thumbnail = get_thumbnail(lib['title'], l);
-        $('#thumb-container .row').append(thumbnail);
+    var element = wrapper.append(dialog.append(content.append(header)
+                                                      .append(body)
+                                                      .append(footer)));
+    var modal = {};
+    modal['element'] = element;
+    modal['setContent'] = function(element) {
+        this.element.find('.modal-body').html(element);
     }
-    // build_modal();
+    modal['display'] = function() {
+        this.element.modal();
+    }
+    modal['destroy'] = function() {
+        this.element.modal('hide');
+    }
+    modal.element.on('hidden.bs.modal', function() {
+        this.remove();
+    });
+    modalstack[0] = modal;
+    return modalstack[0];
 }
 
 var display_modal = function(id) {
-    lib_id = id;
-    lib = libraries[id];
-    shared_with = lib['users'].map(function(u) { return u.id; });
-    other_users = users.map(function(u) { return u.id; });
-    for(i in shared_with) {
-        index = other_users.indexOf(shared_with[i]);
-        if(index > -1) {
-            other_users.splice(index, 1);
-        }
-    }
-    not_shared_with_users = [];
-    for(u in users) {
-        id = users[u]['id'];
-        if(other_users.indexOf(id) > -1) {
-            not_shared_with_users.push(users[u]);
-        }
-    }
-    shared_with_html_list = build_user_list(lib['users'], 'remove');
-    other_users_html_list = build_user_list(not_shared_with_users, 'add')
-    modal = get_modal(lib_id, lib['title'], shared_with_html_list, other_users_html_list);
-    working_library = lib_id;
-    libperms['share'] = {};
-    libperms['unshare'] = {};
-    modal.modal();
+    ui_list = [];
+    lib = lookup_library(id);
+    modal = get_modal(lib.id, lib.title);
+    shared_with_html_list = build_user_list(lib.users(), 'remove');
+    unshared_with_html_list = build_user_list(lib.unshared_users(), 'add');
+    content = $('<div>').append(shared_with_html_list)
+                        .append($('<hr>'))
+                        .append(unshared_with_html_list);
+    modal.setContent(content)
+    modal.display();
 }
 
 $(document).on('click', '.remove-user-btn', function() {
@@ -164,7 +285,9 @@ $(document).on('click', '.remove-user-btn', function() {
            .removeClass('remove-user-btn')
            .addClass('add-user-btn');
     item = $(this).parent().parent();
-    libperms.share[item.data('user-id')] = [];
+    lib_id = $(this).closest('.modal').data('lib-id');
+    var i = get_ui_user(item.data('user-id'));
+    ui_list[i].removeLibrary(lib_id);
     $('.perms-list-add').prepend(item);
 });
 
@@ -175,52 +298,32 @@ $(document).on('click', '.add-user-btn', function() {
            .removeClass('add-user-btn')
            .addClass('remove-user-btn');
     item = $(this).parent().parent();
-    libperms.share[item.data('user-id')] = [working_library];
+    lib_id = $(this).closest('.modal').data('lib-id');
+    var i = get_ui_user(item.data('user-id'));
+    ui_list[i].addLibrary(lib_id);
     $('.perms-list-remove').append(item);
 });
 
 $(document).on('click', '.save-btn', function() {
-    keys = Object.keys(libraries);
-    for(i in keys) {
-        id = parseInt(keys[i]);
-        if(id == parseInt(working_library)) {
-            continue;
-        } else {
-            user_ids = libraries[id]['users'].map(function(item) { return item['id']; });
-            share_keys = Object.keys(libperms.share);
-            for(i in share_keys) {
-                user_id = share_keys[i];
-                if(user_ids.indexOf(user_id) > -1) {
-                    libperms.share[user_id].push(id);
-                }
-            }
-        }
+    modified_users = [];
+    for(var i in ui_list) {
+        if(ui_list[i].modified) modified_users.push(ui_list[i]);
     }
-    console.log('libperms share:');
-    console.log(libperms.share);
-    console.log(Object.keys(libperms.share));
-    share_keys = Object.keys(libperms.share);
-    for(i in share_keys) {
-        uid = share_keys[i];
-        console.log(uid);
-        if(libperms.share[uid].length < 1) {
-            delete libperms.share[uid];
-            libperms.unshare[uid] = [];
-        }
-    }
-    console.log(libperms.share);
-    save_perms_list();
+    if(modified_users.length < 1) return;
+    save_perms_list(modified_users);
 });
 
-var save_perms_list = function() {
+var save_perms_list = function(libperms) {
     $.ajax({
         url: window.location.origin + '/save_shared_servers',
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify(libperms),
         success: function() {
-            modalstack[0].modal('hide');
-            modalstack.splice(0, 1);
+            console.log('done saving.');
+            modalstack[0].destroy();
+            modalstack.splice(0, modalstack.length);
+            ui_list = [];
             load_data(function(){});
         }
     })
