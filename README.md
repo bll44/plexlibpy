@@ -12,14 +12,14 @@ python main.py --setup
 ```
 python main.py
 ```
-#### Start the server on a specified port
+#### Start the server on a specified port <default port: 8080>
 ```
 python main.py --port 8099
 ```
 ---
 After starting the server it can be accessed at:
 ```
-http://<servername>:8080
+http://<servername>:8099
 ```
 ---
 ![Plexlibpy Home](http://i.imgur.com/eSUpZbh.png)
