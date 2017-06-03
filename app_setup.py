@@ -129,7 +129,7 @@ def run_setup(args):
     print('Initial setup is complete.')
     print('')
     print('Start the program via the following command:')
-    print('\'nohup %s %s &\'' % (os.path.join(appconfig.venv_dir,
+    print('\'nohup %s %s > /dev/null 2>&1 &\'' % (os.path.join(appconfig.venv_dir,
                                   'bin' if sys.platform != 'win32' else 'Scripts',
                                   'python' if sys.platform != 'win32' else 'python.exe'),
                      os.path.join(os.path.dirname(__file__), 'main.py')))
