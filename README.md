@@ -19,7 +19,7 @@ python main.py --port 8099
 ---
 After starting the server it can be accessed at:
 ```
-http://<servername>:8099
+http://<servername>:8080
 ```
 ---
 ![Plexlibpy Home](http://i.imgur.com/eSUpZbh.png)
