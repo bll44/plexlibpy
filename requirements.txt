@@ -3,7 +3,6 @@ cheroot==5.5.0
 CherryPy==10.2.2
 packaging==16.8
 portend==1.8
-pprint==0.1
 pyparsing==2.2.0
 pytz==2017.2
 requests==2.14.2
