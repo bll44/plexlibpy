@@ -1,6 +1,7 @@
 import os
 import uuid
 import json
+import sys
 
 # region Logging configuration
 appname = 'plexlibpy'
@@ -22,4 +23,9 @@ plex_auth_url = auth_url = plex_tv_url + '/users/sign_in.json'
 plex_shared_servers_url = plex_tv_url + '/api/servers/%s/shared_servers'
 plex_users_url = plex_tv_url + '/api/users'
 plex_libraries_url = plex_tv_url + '/api/servers/%s'
+# endregion
+
+# region Setup config
+venv_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'venv'))
+packages = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'pkg'))
 # endregion

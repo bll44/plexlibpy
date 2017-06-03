@@ -1,11 +1,10 @@
-from helpers.utils import logger
 import json
 from config import appconfig
 import requests
 from config.appconfig import plex_headers
+import logging
 
-
-_logger = logger.configure_logging(__name__, level='INFO')
+_logger = logging.getLogger(__name__)
 
 
 def load_plex_config():
