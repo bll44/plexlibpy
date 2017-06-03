@@ -96,7 +96,12 @@ def start(args):
     plex_config = plex.load_plex_config()
     appconfig.plex_server_id = plex_config['server_id']
 
-    cherrypy.config.update({'server.socket_host': '0.0.0.0'})
+    if _args.port:
+        port = _args.port
+    else:
+        port = 8080
+    cherrypy.config.update({'server.socket_host': '0.0.0.0',
+                            'server.socket_port': port})
     cherrypy.quickstart(PlexUtil(), '/', {
         '/': {
             'tools.staticdir.root': os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'html')),
