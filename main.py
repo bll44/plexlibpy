@@ -1,5 +1,7 @@
 import os
 import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), 'lib'))
+
 import logging
 import argparse
 from helpers.utils import logger
@@ -18,8 +20,10 @@ def main():
     parser.add_argument('--setup', action='store_true', dest='setup',
                         help='Run the initial setup for the application '
                              '(required before first use)')
+    parser.add_argument('-p', '--port', metavar='<port_number>', type=int, dest='port',
+                        help='Specify the port the server is accessible on')
     parser.add_argument('--test', action='store_true', dest='test',
-                        help='Enable test mode')
+                        help='Enable test mode', default=8080)
     _args = parser.parse_args()
 
     if _args.v:
