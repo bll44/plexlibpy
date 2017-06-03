@@ -10,7 +10,6 @@ from helpers.utils import logger
 import app_setup
 # from config import appconfig
 # from helpers import plex
-import plextool
 
 
 _logger = logger.configure_logging(__name__, level='INFO')
@@ -126,7 +125,14 @@ def main():
     if _args.setup:
         app_setup.run_setup(_args)
     else:
-        plextool.start(_args)
+        try:
+            import plextool
+            plextool.start(_args)
+        except ImportError as e:
+            print(e)
+            print('')
+            print('Make sure you have run the initial setup first via the \'--setup\' option.')
+            sys.exit(1)
 
 
 if __name__ == '__main__':

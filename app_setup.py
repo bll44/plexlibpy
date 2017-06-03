@@ -4,7 +4,6 @@ import logging
 import base64
 from config import appconfig
 import xml.etree.ElementTree as ET
-from helpers import plex
 from helpers.utils import logger
 import time
 import sys
@@ -14,7 +13,8 @@ _logger = logger.configure_logging(__name__, level='INFO')
 
 
 def setup_environment():
-    try: import pip
+    try:
+        import pip
     except ImportError as e:
         print(e)
         sys.exit(1)
@@ -23,7 +23,9 @@ def setup_environment():
     except ImportError:
         print('Installing virtualenv...')
         try:
-            pip.main(['install', 'virtualenv'])
+            pip.main(['install', '--no-index',
+                      '--find-links=%s' % appconfig.packages,
+                      'virtualenv'])
             import virtualenv
         except ImportError:
             print('Cannot create environment.')
@@ -42,11 +44,15 @@ def setup_environment():
 
     try:
         print('Activating virtualenv...')
-        cmdfile = os.path.join(appconfig.venv_dir, 'bin', 'activate_this.py')
+        cmdfile = os.path.join(appconfig.venv_dir,
+                               'bin' if sys.platform != 'win32' else 'Scripts',
+                               'activate_this.py')
         with open(cmdfile) as f:
             exec(f.read(), {'__file__': cmdfile})
         print('Installing packages...')
-        pip.main(['install', '--prefix', appconfig.venv_dir, '-r', 'requirements.txt'])
+        pip.main(['install', '--prefix', appconfig.venv_dir,
+                  '--no-index', '--find-links=%s' % appconfig.packages,
+                  '-r', 'requirements.txt'])
     except ImportError as e:
         print('Could not import required packages')
         print(e)
@@ -86,8 +92,14 @@ def run_setup(args):
     if _args.v:
         _logger.setLevel(logging.DEBUG)
 
+    print('Setting up the environment...')
     setup_environment()
+    print('Environment setup complete.')
 
+    try: from helpers import plex
+    except ImportError as e:
+        print(e)
+        sys.exit(1)
     print('Running initial setup...')
     plex_info = {}
     username = input('Enter your plex.tv username: ')

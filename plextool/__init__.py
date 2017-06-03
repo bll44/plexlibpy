@@ -2,7 +2,6 @@ import cherrypy
 import requests
 from config import appconfig
 import xml.etree.ElementTree as ET
-import plex_config
 import plex_api
 from helpers import plex
 import sys
@@ -100,7 +99,7 @@ def start(args):
     cherrypy.config.update({'server.socket_host': '0.0.0.0'})
     cherrypy.quickstart(PlexUtil(), '/', {
         '/': {
-            'tools.staticdir.root': os.path.abspath(os.path.join(__file__, '..', 'html')),
+            'tools.staticdir.root': os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'html')),
             'tools.staticdir.on': True,
             'tools.staticdir.dir': '',
             'tools.staticdir.index': 'index.html'

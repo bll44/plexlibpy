@@ -1,6 +1,7 @@
 import os
 import uuid
 import json
+import sys
 
 # region Logging configuration
 appname = 'plexlibpy'
@@ -26,4 +27,5 @@ plex_libraries_url = plex_tv_url + '/api/servers/%s'
 
 # region Setup config
 venv_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'venv'))
+packages = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'pkg'))
 # endregion
