@@ -13,5 +13,5 @@ After starting the server it can be accessed at:
 http://<servername>:8080
 ```
 ---
-[Plexlibpy Home](http://i.imgur.com/eSUpZbh.png)
-[Edit Library Shares](http://i.imgur.com/Tz90ygY.png)
+![Plexlibpy Home](http://i.imgur.com/eSUpZbh.png)
+![Edit Library Shares](http://i.imgur.com/Tz90ygY.png)
