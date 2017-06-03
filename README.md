@@ -8,6 +8,3 @@ cd plexlibpy/
 python main.py --setup
 ```
 ---
-![](http://imgur.com/a/CPQIS)
----
-![](http://imgur.com/a/NZ6DK)
