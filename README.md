@@ -1,5 +1,5 @@
 # plexlibpy
-A tool for bulk updating and removing users from plex libraries
+A web application tool for bulk updating plex library sharing permissions
 
 ## Setup instructions
 ```
