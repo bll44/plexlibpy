@@ -8,3 +8,7 @@ cd plexlibpy/
 python main.py --setup
 ```
 ---
+After starting the server it can be accessed at:
+```
+http://<servername>:8080
+```
