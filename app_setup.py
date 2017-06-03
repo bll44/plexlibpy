@@ -4,13 +4,11 @@ import logging
 import base64
 from config import appconfig
 import xml.etree.ElementTree as ET
-from helpers.utils import logger
 import time
 import sys
 
 _args = None
-_logger = logger.configure_logging(__name__, level='INFO')
-
+_logger = logging.getLogger(__name__)
 
 def setup_environment():
     try:
