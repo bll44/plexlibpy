@@ -30,12 +30,6 @@ def main():
     else:
         try:
             import plextool
-            import virtualenv
-            cmdfile = os.path.join(appconfig.venv_dir,
-                                   'bin' if sys.platform != 'win32' else 'Scripts',
-                                   'activate_this.py')
-            with open(cmdfile) as f:
-                exec(f.read(), {'__file__': cmdfile})
             plextool.start(_args)
         except ImportError as e:
             print(e)
